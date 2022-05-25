@@ -1,94 +1,37 @@
 library("raster")
-library("rgdal")
 library("landscapemetrics")
-library(dplyr)
-library(purrr)
+library("magrittr")
+library("data.table")
 
-# version 2 data sources----
-arid14 <- raster(x = 'Data/rasters/from_Michal/2015/ver2/AridNa2015.TIF')
-arid18 <- raster(x = 'Data/rasters/from_Michal/2017/ver2/AridNa2017.TIF')
-arid20 <- raster(x = 'Data/rasters/from_Michal/2019/ver2/AridNa2019.TIF')
+# load data----
+code_table <- data.table(code = c("10","20","30","40","60","70","80","90","100","110","120","140"),
+                         unit = c("batha","maquis_galilee","maquis_carmel","maquis_judea","coastal_sands","negev_highlands","inland_sands",
+                                  "open_forest_ithaburensis","conifer_forest","desert_med_trans","loess_savanization","arid_south"))
+years <- c("2015","2017","2020")
+output <- data.table(unit=character(), year=numeric(), p_area_mn = numeric(), p_area_sd=numeric(), p_total_area=numeric(),
+                     p_number=numeric(), edge_density=numeric(), p_density=numeric(),unit_total_area=numeric())
 
-negev14 <- raster(x = 'Data/rasters/from_Michal/2015/ver2/NegevNa2015.TIF')
-negev18 <- raster(x = 'Data/rasters/from_Michal/2017/ver2/NegevNa2017.TIF')
-negev20 <- raster(x = 'Data/rasters/from_Michal/2019/ver2/NegevNa2019.TIF')
-
-inland14 <- raster(x = 'Data/rasters/from_Michal/2015/ver2/InnerSandsNa2015.TIF')
-inland18 <- raster(x = 'Data/rasters/from_Michal/2017/ver2/InnerSandsNa2017.TIF')
-inland20 <- raster(x = 'Data/rasters/from_Michal/2019/ver2/InnerSandsNa2019.TIF')
-
-batha14 <- raster(x = 'Data/rasters/from_Michal/2015/ver2/BathaNa2015.TIF')
-batha18 <- raster(x = 'Data/rasters/from_Michal/2017/ver2/BathaNa2017.TIF')
-batha20 <- raster(x = 'Data/rasters/from_Michal/2019/ver2/BathaNa2019.TIF')
-
-coastal14 <- raster(x = 'Data/rasters/from_Michal/2015/ver2/CostalNa2015.TIF')
-coastal18 <- raster(x = 'Data/rasters/from_Michal/2017/ver2/CoastalNa2017.TIF')
-coastal20 <- raster(x = 'Data/rasters/from_Michal/2019/ver2/CoastalNa2019.TIF')
-
-forest14 <- raster(x = 'Data/rasters/from_Michal/2015/ver2/ForestsNa2015.TIF')
-forest18 <- raster(x = 'Data/rasters/from_Michal/2017/ver2/ForestsNa2017.TIF')
-forest20 <- raster(x = 'Data/rasters/from_Michal/2019/ver2/ForestsNa2019.TIF')
-
-maquis14 <- raster(x = 'Data/rasters/from_Michal/2015/ver2/HoreshNa2015.TIF')
-maquis18 <- raster(x = 'Data/rasters/from_Michal/2017/ver2/HoreshNa2017.TIF')
-maquis20 <- raster(x = 'Data/rasters/from_Michal/2019/ver2/HoreshNa2019.TIF')
-
-loess14 <- raster(x = 'Data/rasters/from_Michal/2015/ver2/LoessNa2015.TIF')
-loess18 <- raster(x = 'Data/rasters/from_Michal/2017/ver2/LoessNa2017.TIF')
-loess20 <- raster(x = 'Data/rasters/from_Michal/2019/ver2/LoessNa2019.TIF')
-
-sfar14 <- raster(x = 'Data/rasters/from_Michal/2015/ver2/SfarNa2015.TIF')
-sfar18 <- raster(x = 'Data/rasters/from_Michal/2017/ver2/SfarNa2017.TIF')
-sfar20 <- raster(x = 'Data/rasters/from_Michal/2019/ver2/SfarNa2019.TIF')
-
-
-#----
-raster_names <- c("arid", "batha", "coastal", "forest", "inland", "loess", "maquis", "negev", "sfar")
-raster_names_t0 <- paste0(raster_names,"14")
-raster_names_t2 <- paste0(raster_names,"18")
-raster_names_t3 <- paste0(raster_names,"20")
-
-metrics_t0 <- vector(mode = "list", length = length(raster_names))
-metrics_t2 <- vector(mode = "list", length = length(raster_names))
-metrics_t3 <- vector(mode = "list", length = length(raster_names))
-
-# natural patch area (ca=class area), patch density, patch edge density
-for (i in 1:length(metrics_t0)) {
-  code <- paste0("curr_raster <- ",raster_names_t0[i])
-  eval(parse(text = code))
-  out <- calculate_lsm(landscape = curr_raster, metric = c("ca","pd","ed"), directions = 8, progress = TRUE)
-  metrics_t0[[i]] <- out
+# calculate metrics----
+# use <lsm_abbreviations_names %>% print(n=Inf)> or <list_lsm()> to get a list of the metrics abbreviations
+for (i in 1:length(years)) {
+  for (j in 1:nrow(code_table)) {
+    var <- paste0(years[i],"_",code_table[j,1,with=F],".tif")
+    print(var)
+    curr_raster <- raster(x = paste0("Data/",var))
+    curr_out <- calculate_lsm(landscape = curr_raster, what = c("lsm_c_area_mn","lsm_c_area_sd","lsm_c_np","lsm_c_pd",
+                                                                "lsm_c_ed","lsm_c_ca","lsm_l_ta"),
+                              directions = 8, progress = F) %>% as.data.table()
+    curr_out <- curr_out[class==1L | is.na(class),]
+    new_output_row <- data.table(unit=code_table[j,unit],
+                                 year=as.numeric(years[i]),
+                                 p_area_mn = curr_out[metric=="area_mn",value],
+                                 p_area_sd=curr_out[metric=="area_sd",value],
+                                 p_total_area=curr_out[metric=="ca",value],
+                                 p_number=curr_out[metric=="np",value],
+                                 edge_density=curr_out[metric=="ed",value],
+                                 p_density=curr_out[metric=="pd",value],
+                                 unit_total_area=curr_out[metric=="ta",value])
+    output <- rbind(output,new_output_row)
+  }
 }
-
-for (i in 1:length(metrics_t2)) {
-  code <- paste0("curr_raster <- ",raster_names_t2[i])
-  eval(parse(text = code))
-  out <- calculate_lsm(landscape = curr_raster, metric = c("ca","pd","ed"), directions = 8, progress = TRUE)
-  metrics_t2[[i]] <- out
-}
-
-for (i in 1:length(metrics_t3)) {
-  code <- paste0("curr_raster <- ",raster_names_t3[i])
-  eval(parse(text = code))
-  out <- calculate_lsm(landscape = curr_raster, metric = c("ca","pd","ed"), directions = 8, progress = TRUE)
-  metrics_t3[[i]] <- out
-}
-
-Lmetrics <- vector(mode = "list", length = length(raster_names))
-for (i in 1:length(raster_names)) {
-  a <- metrics_t0[[i]] %>% dplyr::filter(level=="landscape" | (metric=="ca" & class==1)) %>%
-    cbind(raster_names[i],.) %>% mutate(eco_unit=raster_names[i], value_t0=value) %>%
-    dplyr::select(eco_unit,metric,value_t0)
-  b <- metrics_t2[[i]] %>% dplyr::filter(level=="landscape" | (metric=="ca" & class==1)) %>%
-    cbind(raster_names[i],.) %>% mutate(eco_unit=raster_names[i], value_t2=value) %>%
-    dplyr::select(eco_unit,metric,value_t2)
-  c <- metrics_t3[[i]] %>% dplyr::filter(level=="landscape" | (metric=="ca" & class==1)) %>%
-    cbind(raster_names[i],.) %>% mutate(eco_unit=raster_names[i], value_t3=value) %>%
-    dplyr::select(eco_unit,metric,value_t3)
-  Lmetrics[[i]] <- inner_join(inner_join(a,b, by = c("eco_unit","metric")), c, by = c("eco_unit","metric"))
-}
-metrics <- do.call(rbind,Lmetrics)
-save(list = c("metrics_t0","metrics_t2","metrics_t3","Lmetrics","metrics"),file = "Data/rasters/results_ver2/T0_T2_T3_results.RData")
-write.csv(x = metrics, file="Data/rasters/results_ver2/T0_T2_T3_results.csv")
-
-
+fwrite(output, file = "Output/results_table.csv")
