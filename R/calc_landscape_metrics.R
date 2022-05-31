@@ -4,9 +4,9 @@ library("magrittr")
 library("data.table")
 
 # load data----
-code_table <- data.table(code = c("10","20","30","40","60","70","80","90","100","110","120","140"),
-                         unit = c("batha","maquis_galilee","maquis_carmel","maquis_judea","coastal_sands","negev_highlands","inland_sands",
-                                  "open_forest_ithaburensis","conifer_forest","desert_med_trans","loess_savanization","arid_south"))
+code_table <- data.table(unit_in_filename = c("Batha","Horesh","Coastal","Negev","InnerSands","Forest","Sfar","Loess","Arid"),
+                         unit = c("batha","maquis","coastal_sands","negev_highlands","inland_sands",
+                                  "conifer_forest","desert_med_trans","loess","arid_south"))
 years <- c("2015","2017","2020")
 output <- data.table(unit=character(), year=numeric(), p_area_mn = numeric(), p_area_sd=numeric(), p_total_area=numeric(),
                      p_number=numeric(), edge_density=numeric(), p_density=numeric(),unit_total_area=numeric())
@@ -15,7 +15,7 @@ output <- data.table(unit=character(), year=numeric(), p_area_mn = numeric(), p_
 # use <lsm_abbreviations_names %>% print(n=Inf)> or <list_lsm()> to get a list of the metrics abbreviations
 for (i in 1:length(years)) {
   for (j in 1:nrow(code_table)) {
-    var <- paste0(years[i],"_",code_table[j,1,with=F],".tif")
+    var <- paste0("Rezef",years[i],"_",code_table[j,1,with=F],".tif")
     print(var)
     curr_raster <- raster(x = paste0("Data/",var))
     curr_out <- calculate_lsm(landscape = curr_raster, what = c("lsm_c_area_mn","lsm_c_area_sd","lsm_c_np","lsm_c_pd",
