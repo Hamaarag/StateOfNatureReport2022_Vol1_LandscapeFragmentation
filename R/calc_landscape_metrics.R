@@ -10,39 +10,64 @@ code_table <- data.table(unit_in_filename = c("Batha","Horesh","Coastal","Negev"
                                   "conifer_forest","desert_med_trans","loess","arid_south"))
 years <- c("2015","2017","2020")
 output <- data.table(unit=character(), year=numeric(), p_area_mn = numeric(), p_area_sd=numeric(), p_total_area_km2=numeric(),
-                     p_area_max_km2 = numeric(), p_number=numeric(), edge_density_km_km2=numeric(), p_density_n_km2=numeric(),
-                     unit_total_area_km2=numeric(),p_area_km2 = list())
+                     p_area_max_km2 = numeric(), p_num=numeric(), edge_density_km_km2=numeric(), p_density_n_km2=numeric(),
+                     unit_total_area_km2=numeric(), p_contig_area_km2=list(), p_contig_prop=numeric(), p_data = list())
 
 # calculate metrics----
 # use <lsm_abbreviations_names %>% print(n=Inf)> or <list_lsm()> to get a list of the metrics abbreviations
+
+contiguous_area_thr <- 0.7  # proportion of most contiguous area to include in analysis
+
 for (i in 1:length(years)) {
   for (j in 1:nrow(code_table)) {
     #var <- paste0("Rezef",years[i],"_",code_table[j,unit_in_filename],".tif")
     var <- paste0(code_table[j,unit_in_filename],"Na",years[i],".tif")
     print(var)
     curr_raster <- raster(x = paste0("Data/natural_and_forested_landscape/20220607/",var))
-    curr_out <- calculate_lsm(landscape = curr_raster, what = c("lsm_p_area","lsm_c_ed","lsm_l_ta"),directions = 8, progress = F) %>%
+    curr_out <- calculate_lsm(landscape = curr_raster, what = c("lsm_p_area","lsm_p_perim","lsm_c_ed","lsm_l_ta"),directions = 8, progress = F) %>%
       as.data.table()
     curr_out <- curr_out[class==1L | is.na(class),]
+    
+    # table of patch data
+    p_data <- dcast.data.table(curr_out[level=="patch",], formula = id ~ metric, value.var = 'value')
+    p_data$area <- p_data$area/100
+    p_data$perim <- p_data$perim/1000
+    p_data <- p_data[order(-area),]
+    setnames(p_data,c("area","perim"),c("area_km2","perim_km"))
+    
+    # build list of most contiguous patches
+    patch_area_v <- p_data[,area_km2] 
+    pct_v <- patch_area_v/sum(patch_area_v)
+    cdf_v <- cumsum(pct_v)
+    idx <- match(T,cdf_v>contiguous_area_thr)
+    
+    
+    # build new results row
     new_output_row <- data.table(unit=code_table[j,unit],
                                  year=as.numeric(years[i]),
                                  edge_density_km_km2=curr_out[metric=="ed",value]/10,
                                  unit_total_area_km2=curr_out[metric=="ta",value]/100,
-                                 p_area_km2 = list(curr_out[level=="patch",value]/100))
+                                 p_data = list(p_data))
     
     new_output_row[1, `:=`(p_area_mn = mean(p_area_km2[[1]]),
                    p_area_sd = sd(p_area_km2[[1]]),
                    p_total_area_km2=sum(p_area_km2[[1]]),
                    p_area_max_km2 = max(p_area_km2[[1]]),
-                   p_number = length(p_area_km2[[1]]))]
+                   p_num = length(p_area_km2[[1]]))]
     
-    new_output_row[1,p_density_n_km2 := p_number / unit_total_area_km2]
+    new_output_row[1,p_density_n_km2 := p_num / unit_total_area_km2]
+    
+    new_output_row[1, `:=`(p_contig_area_km2 = list(patch_area_v[1:idx]),
+                           p_contig_prop = cdf_v[idx],
+                           p_contig_num = idx,
+                           )]
     
     setcolorder(x = new_output_row, neworder = names(output))
     
     output <- rbind(output,new_output_row)
   }
 }
+
 
 # calculate percent difference in metrics----
 
