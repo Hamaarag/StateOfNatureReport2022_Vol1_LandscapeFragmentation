@@ -20,7 +20,7 @@ for (i in 1:length(years)) {
     #var <- paste0("Rezef",years[i],"_",code_table[j,unit_in_filename],".tif")
     var <- paste0(code_table[j,unit_in_filename],"Na",years[i],".tif")
     print(var)
-    curr_raster <- raster(x = paste0("Data/natural_and_forested_landscape/20220606/",var))
+    curr_raster <- raster(x = paste0("Data/natural_and_forested_landscape/20220607/",var))
     curr_out <- calculate_lsm(landscape = curr_raster, what = c("lsm_p_area","lsm_c_ed","lsm_l_ta"),directions = 8, progress = F) %>%
       as.data.table()
     curr_out <- curr_out[class==1L | is.na(class),]
