@@ -46,7 +46,8 @@ for (i in 1:length(years)) {
 
 # calculate percent difference in metrics----
 
-perc_diff <- output[,.(year, area_mn=(p_area_mn-p_area_mn[year==2015])/p_area_mn[year==2015]*100,
+perc_diff <- output[,.(year,
+                       area_mn_perc=(p_area_mn-p_area_mn[year==2015])/p_area_mn[year==2015]*100,
                        area_max=(p_area_max_km2-p_area_max_km2[year==2015])/p_area_max_km2[year==2015]*100,
                        edge_density=(edge_density_km_km2-edge_density_km_km2[year==2015])/edge_density_km_km2[year==2015]*100,
                        patch_density=(p_density_n_km2-p_density_n_km2[year==2015])/p_density_n_km2[year==2015]*100),
@@ -56,6 +57,9 @@ A <- perc_diff[,lapply(.SD,mean),by=year,.SDcols=-"unit"]
 A[,unit:=rep("average",3)]
 setcolorder(x = A, neworder = names(perc_diff))
 perc_diff <- rbind(perc_diff,A)
+
+diff_natural <- output[order(year),lapply(.SD,diff),by=unit, .SDcols = "p_total_area_km2"] %>% cbind(.,data.table(year=c(2017,2020)))
+print(diff_natural)
 
 # write data to file----
 
@@ -74,14 +78,14 @@ ggplot(perc_diff, aes(x=year,y=patch_density, group=unit, color=unit, size=highl
   guides(size="none",linetype="none",alpha="none")
 
 # calculate and plot CDF for 2015 for all units----
-par(mfrow=c(3,3))
-for (i in 1:nrow(code_table)) {
-  curr_unit <- code_table[i,unit]
-  area_v <- output[year==2015 & unit==curr_unit,p_area_km2] %>% strsplit(.,split = '\\|') %>% unlist() %>%
-    as.numeric() %>% sort(.,decreasing = T)
-  # pct_v <- area_v/sum(area_v)
-  # cdf_v <- cumsum(pct_v)
-  # cdf <- ecdf(area_v)
-  # plot(cdf, main = curr_unit)
-  hist(log10(area_v), main = curr_unit)
-}
+# par(mfrow=c(3,3))
+# for (i in 1:nrow(code_table)) {
+#   curr_unit <- code_table[i,unit]
+#   area_v <- output[year==2015 & unit==curr_unit,p_area_km2] %>% strsplit(.,split = '\\|') %>% unlist() %>%
+#     as.numeric() %>% sort(.,decreasing = T)
+#   # pct_v <- area_v/sum(area_v)
+#   # cdf_v <- cumsum(pct_v)
+#   # cdf <- ecdf(area_v)
+#   # plot(cdf, main = curr_unit)
+#   hist(log10(area_v), main = curr_unit)
+# }
